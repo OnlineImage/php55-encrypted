@@ -1,2 +1,2 @@
 # php55-encrypted
-PHP Version 5.5
+PHP Version 5.5 Unified Plugin Encrypted
