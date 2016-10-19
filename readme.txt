@@ -32,6 +32,8 @@ Contact your account manager
 None
 
 == Changelog ==
+= 2.0.3 =
+Added additional cities in Virginia to the zip code database
 = 2.0.2 =
 Added version history. Original code now on AWS repo for development and to push final to GitHub for releases.
 = 2.0.1 =

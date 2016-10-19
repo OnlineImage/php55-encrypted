@@ -1,7 +1,7 @@
 <?php
 /*
   Plugin Name: OI Unified
-  Version: 2.0.2
+  Version: 2.0.3
   Plugin URI: https://www.onlineimage.com
   Author: The Dev Team
   Author URI: https://www.onlineimage.com/
@@ -9,6 +9,7 @@
  */
  // 2.0.1 Added millcreek ut to zipcode database 
  // 2.0.2 Version update check 
+ // 2.0.3 See readme.txt for version updates
  if( ! class_exists( 'OIUnified_Updater' ) ){
 	include_once( plugin_dir_path( __FILE__ ) . 'updater.php' );
 }
