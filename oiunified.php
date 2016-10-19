@@ -1,7 +1,7 @@
 <?php
 /*
   Plugin Name: OI Unified
-  Version: 2.0.5
+  Version: 2.0.7
   Plugin URI: https://www.onlineimage.com
   Author: The Dev Team
   Author URI: https://www.onlineimage.com/
