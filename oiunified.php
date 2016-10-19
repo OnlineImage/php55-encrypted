@@ -1,7 +1,7 @@
 <?php
 /*
   Plugin Name: OI Unified
-  Version: 2.0.5
+  Version: 2.0.3
   Plugin URI: https://www.onlineimage.com
   Author: The Dev Team
   Author URI: https://www.onlineimage.com/
@@ -10,17 +10,12 @@
  // 2.0.1 Added millcreek ut to zipcode database 
  // 2.0.2 Version update check 
  // 2.0.3 See readme.txt for version updates
- if( ! class_exists( 'OIUnified_Updater' ) ){
-	include_once( plugin_dir_path( __FILE__ ) . 'updater.php' );
+
+require_once( 'updater.php' );
+if ( is_admin() ) {
+    new BFIGitHubPluginUpdater( __FILE__, 'OnlineImage', "php55-encrypted" );
 }
 
-$updater = new OIUnified_Updater( __FILE__ );
-$updater->set_username( 'OnlineImage' );
-$updater->set_repository( 'php55-encrypted' );
-/*
-	$updater->authorize( 'abcdefghijk1234567890' ); // Your auth code goes here for private repos
-*/
-$updater->initialize(); 
  // Block direct requests
 if ( !defined('ABSPATH') )
     die('-1');

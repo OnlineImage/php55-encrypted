@@ -32,6 +32,8 @@ Contact your account manager
 None
 
 == Changelog ==
+= 2.0.6 =
+Adjusted the updater
 = 2.0.5 =
 Fixed bad encryption
 = 2.0.3 =
