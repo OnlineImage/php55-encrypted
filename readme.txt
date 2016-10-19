@@ -33,7 +33,7 @@ None
 
 == Changelog ==
 = 2.0.2 =
-Added version history and push to aws
+Added version history and push to aws new repo
 = 2.0.1 =
 Added Millcreek Utah to the zip code database
 
