@@ -32,7 +32,7 @@ Contact your account manager
 None
 
 == Changelog ==
-= 2.0.4 =
+= 2.0.5 =
 Fixed bad encryption
 = 2.0.3 =
 Added additional cities in Virginia to the zip code database
