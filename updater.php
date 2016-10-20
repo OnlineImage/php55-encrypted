@@ -1,248 +1,134 @@
 <?php
-class BFIGitHubPluginUpdater {
 
-    private $slug;
+class WP_AutoUpdate 
+{
+	/**
+	 * The plugin current version
+	 * @var string
+	 */
+	private $current_version;
 
-    private $pluginData;
+	/**
+	 * The plugin remote update path
+	 * @var string
+	 */
+	private $update_path;
 
-    private $username;
+	/**
+	 * Plugin Slug (plugin_directory/plugin_file.php)
+	 * @var string
+	 */
+	private $plugin_slug;
 
-    private $repo;
+	/**
+	 * Plugin name (plugin_file)
+	 * @var string
+	 */
+	private $slug;
 
-    private $pluginFile;
+	/**
+	 * License User
+	 * @var string
+	 */
+	private $license_user;
 
-    private $githubAPIResult;
+	/**
+	 * License Key 
+	 * @var string
+	 */
+	private $license_key;
 
-    private $accessToken;
+	/**
+	 * Initialize a new instance of the WordPress Auto-Update class
+	 * @param string $current_version
+	 * @param string $update_path
+	 * @param string $plugin_slug
+	 */
+	public function __construct( $current_version, $update_path, $plugin_slug )
+	{
+		// Set the class public variables
+		$this->current_version = $current_version;
+		$this->update_path = $update_path;
 
-    private $pluginActivated;
+		// Set the Plugin Slug	
+		$this->plugin_slug = $plugin_slug;
+		list ($t1, $t2) = explode( '/', $plugin_slug );
+		$this->slug = str_replace( '.php', '', $t2 );		
 
-    /**
-     * Class constructor.
-     *
-     * @param  string $pluginFile
-     * @param  string $gitHubUsername
-     * @param  string $gitHubProjectName
-     * @param  string $accessToken
-     * @return null
-     */
-    function __construct( $pluginFile, $gitHubUsername, $gitHubProjectName, $accessToken = '' )
-    {
-        add_filter( "pre_set_site_transient_update_plugins", array( $this, "setTransitent" ) );
-        add_filter( "plugins_api", array( $this, "setPluginInfo" ), 10, 3 );
-        add_filter( "upgrader_pre_install", array( $this, "preInstall" ), 10, 3 );
-        add_filter( "upgrader_post_install", array( $this, "postInstall" ), 10, 3 );
+		// define the alternative API for updating checking
+		add_filter( 'pre_set_site_transient_update_plugins', array( &$this, 'check_update' ) );
 
-        $this->pluginFile 	= $pluginFile;
-        $this->username 	= $gitHubUsername;
-        $this->repo 		= $gitHubProjectName;
-        $this->accessToken 	= $accessToken;
-		
-    }
+		// Define the alternative response for information checking
+		add_filter( 'plugins_api', array( &$this, 'check_info' ), 10, 3 );
+	}
 
-    /**
-     * Get information regarding our plugin from WordPress
-     *
-     * @return null
-     */
-    private function initPluginData()
-    {
-		$this->slug = plugin_basename( $this->pluginFile );
-
-		$this->pluginData = get_plugin_data( $this->pluginFile );
-    }
-
-    /**
-     * Get information regarding our plugin from GitHub
-     *
-     * @return null
-     */
-    private function getRepoReleaseInfo()
-    {
-        if ( ! empty( $this->githubAPIResult ) )
-        {
-    		return;
+	/**
+	 * Add our self-hosted autoupdate plugin to the filter transient
+	 *
+	 * @param $transient
+	 * @return object $ transient
+	 */
+	public function check_update( $transient )
+	{
+		if ( empty( $transient->checked ) ) {
+			return $transient;
 		}
 
-		// Query the GitHub API
-		$url = "https://api.github.com/repos/{$this->username}/{$this->repo}/releases";
+		// Get the remote version
+		$remote_version = $this->getRemote('version');
 
-		if ( ! empty( $this->accessToken ) )
-		{
-		    $url = add_query_arg( array( "access_token" => $this->accessToken ), $url );
-		}
-
-		// Get the results
-		$this->githubAPIResult = wp_remote_retrieve_body( wp_remote_get( $url ) );
-
-		if ( ! empty( $this->githubAPIResult ) )
-		{
-		    $this->githubAPIResult = @json_decode( $this->githubAPIResult );
-		}
-
-		// Use only the latest release
-		if ( is_array( $this->githubAPIResult ) )
-		{
-		    $this->githubAPIResult = $this->githubAPIResult[0];
-		}
-    }
-
-    /**
-     * Push in plugin version information to get the update notification
-     *
-     * @param  object $transient
-     * @return object
-     */
-    public function setTransitent( $transient )
-    {
-        if ( empty( $transient->checked ) )
-        {
-    		return $transient;
-		}
-
-		// Get plugin & GitHub release information
-		$this->initPluginData();
-		$this->getRepoReleaseInfo();
-
-		$doUpdate = version_compare( $this->githubAPIResult->tag_name, $transient->checked[$this->slug] );
-
-		if ( $doUpdate )
-		{
-			$package = $this->githubAPIResult->zipball_url;
-
-			if ( ! empty( $this->accessToken ) )
-			{
-			    $package = add_query_arg( array( "access_token" => $this->accessToken ), $package );
-			}
-
-			// Plugin object
+		// If a newer version is available, add the update
+		if ( version_compare( $this->current_version, $remote_version->new_version, '<' ) ) {
 			$obj = new stdClass();
 			$obj->slug = $this->slug;
-			$obj->new_version = $this->githubAPIResult->tag_name;
-			$obj->url = $this->pluginData["PluginURI"];
-			$obj->package = $package;
-
-			$transient->response[$this->slug] = $obj;
+			$obj->new_version = $remote_version->new_version;
+			$obj->url = $remote_version->url;
+			$obj->plugin = $this->plugin_slug;
+			$obj->package = $remote_version->package;
+			$obj->tested = $remote_version->tested;
+			$transient->response[$this->plugin_slug] = $obj;
 		}
+		return $transient;
+	}
 
-        return $transient;
-    }
-
-    /**
-     * Push in plugin version information to display in the details lightbox
-     *
-     * @param  boolean $false
-     * @param  string $action
-     * @param  object $response
-     * @return object
-     */
-    public function setPluginInfo( $false, $action, $response )
-    {
-		$this->initPluginData();
-		$this->getRepoReleaseInfo();
-
-		if ( empty( $response->slug ) || $response->slug != $this->slug )
-		{
-		    return $false;
+	/**
+	 * Add our self-hosted description to the filter
+	 *
+	 * @param boolean $false
+	 * @param array $action
+	 * @param object $arg
+	 * @return bool|object
+	 */
+	public function check_info($false, $action, $arg)
+	{
+		if (isset($arg->slug) && $arg->slug === $this->slug) {
+			return $this->getRemote('info');
 		}
+		
+		return false;
+	}
 
-		// Add our plugin information
-		$response->last_updated = $this->githubAPIResult->published_at;
-		$response->slug = $this->slug;
-		$response->plugin_name  = $this->pluginData["Name"];
-		$response->version = $this->githubAPIResult->tag_name;
-		$response->author = $this->pluginData["AuthorName"];
-		$response->homepage = $this->pluginData["PluginURI"];
-
-		// This is our release download zip file
-		$downloadLink = $this->githubAPIResult->zipball_url;
-
-		if ( !empty( $this->accessToken ) )
-		{
-		    $downloadLink = add_query_arg(
-		        array( "access_token" => $this->accessToken ),
-		        $downloadLink
-		    );
-		}
-
-		$response->download_link = $downloadLink;
-
-		// Load Parsedown
-		require_once __DIR__ . DIRECTORY_SEPARATOR . 'Parsedown.php';
-
-		// Create tabs in the lightbox
-		$response->sections = array(
-			'Description' 	=> $this->pluginData["Description"],
-			'changelog' 	=> class_exists( "Parsedown" )
-				? Parsedown::instance()->parse( $this->githubAPIResult->body )
-				: $this->githubAPIResult->body
+	/**
+	 * Return the remote version
+	 * 
+	 * @return string $remote_version
+	 */
+	public function getRemote($action = '')
+	{
+		$params = array(
+			'body' => array(
+				'action'       => $action
+			),
 		);
-
-		// Gets the required version of WP if available
-		$matches = null;
-		preg_match( "/requires:\s([\d\.]+)/i", $this->githubAPIResult->body, $matches );
-		if ( ! empty( $matches ) ) {
-		    if ( is_array( $matches ) ) {
-		        if ( count( $matches ) > 1 ) {
-		            $response->requires = $matches[1];
-		        }
-		    }
+		
+		// Make the POST request
+		$request = wp_remote_post($this->update_path, $params );
+		
+		// Check if response is valid
+		if ( !is_wp_error( $request ) || wp_remote_retrieve_response_code( $request ) === 200 ) {
+			return @unserialize( $request['body'] );
 		}
-
-		// Gets the tested version of WP if available
-		$matches = null;
-		preg_match( "/tested:\s([\d\.]+)/i", $this->githubAPIResult->body, $matches );
-		if ( ! empty( $matches ) ) {
-		    if ( is_array( $matches ) ) {
-		        if ( count( $matches ) > 1 ) {
-		            $response->tested = $matches[1];
-		        }
-		    }
-		}
-
-        return $response;
-    }
-
-    /**
-     * Perform check before installation starts.
-     *
-     * @param  boolean $true
-     * @param  array   $args
-     * @return null
-     */
-    public function preInstall( $true, $args )
-    {
-        // Get plugin information
-		$this->initPluginData();
-
-		// Check if the plugin was installed before...
-    	$this->pluginActivated = is_plugin_active( $this->slug );
-    }
-
-    /**
-     * Perform additional actions to successfully install our plugin
-     *
-     * @param  boolean $true
-     * @param  string $hook_extra
-     * @param  object $result
-     * @return object
-     */
-    public function postInstall( $true, $hook_extra, $result )
-    {
-		global $wp_filesystem;
-
-		// Since we are hosted in GitHub, our plugin folder would have a dirname of
-		// reponame-tagname change it to our original one:
-		$pluginFolder = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . dirname( $this->slug );
-		$wp_filesystem->move( $result['destination'], $pluginFolder );
-		$result['destination'] = $pluginFolder;
-
-		// Re-activate plugin if needed
-		if ( $this->pluginActivated )
-		{
-		    $activate = activate_plugin( $this->slug );
-		}
-
-        return $result;
-    }
+		
+		return false;
+	}
 }
