@@ -32,6 +32,8 @@ Contact your account manager
 None
 
 == Changelog ==
+= 2.0.9 =
+revised the updater to be self hosted
 = 2.0.7 =
 Updater changes
 = 2.0.6 =
